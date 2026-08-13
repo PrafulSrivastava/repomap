@@ -506,6 +506,70 @@ def merge_tiny(groups: list[GraphGroup],
 
 
 # ---------------------------------------------------------------------------
+# Cross-graph bridges
+# ---------------------------------------------------------------------------
+
+MAX_BRIDGE_SYMBOLS = 8
+
+# ponytail: stdlib/ubiquitous imports that add no cross-graph signal
+BRIDGE_NOISE = frozenset({
+    '__future__', 'pathlib', 'datetime', 'os', 'sys', 'json', 'typing',
+    're', 'collections', 'dataclasses', 'abc', 'enum', 'functools',
+    'itertools', 'io', 'logging', 'math', 'hashlib', 'copy', 'time',
+    'uuid', 'contextlib', 'tempfile', 'shutil', 'subprocess', 'glob',
+    'pydantic', 'pytest', 'asyncio', 'unittest',
+    'react', 'react-dom', 'next', 'vue',
+})
+
+
+def compute_bridges(groups: list[GraphGroup],
+                    components: list[Component],
+                    coupling: dict[tuple[int, int], float]) -> list[dict]:
+    """
+    Find shared import symbols between components that landed in different
+    final graphs. These are the cross-graph traversal anchors.
+    """
+    # Map each component index to its final graph index
+    comp_to_graph: dict[int, int] = {}
+    for gi, g in enumerate(groups):
+        for c in g.components:
+            comp_to_graph[components.index(c)] = gi
+
+    # Aggregate by graph pair: collect shared symbols and max weight
+    pair_data: dict[tuple[int, int], dict] = {}
+    for (ci, cj), score in coupling.items():
+        gi = comp_to_graph.get(ci)
+        gj = comp_to_graph.get(cj)
+        if gi is None or gj is None or gi == gj:
+            continue
+        key = (min(gi, gj), max(gi, gj))
+        if key not in pair_data:
+            pair_data[key] = {'weight': 0.0, 'symbols': defaultdict(int)}
+        if score > pair_data[key]['weight']:
+            pair_data[key]['weight'] = score
+        shared = components[ci].refs & components[cj].refs
+        for sym in shared:
+            # Skip stdlib/ubiquitous imports — only domain symbols are useful bridges
+            base = sym.split('.')[0].split('/')[0]
+            if base in BRIDGE_NOISE:
+                continue
+            pair_data[key]['symbols'][sym] += 1
+
+    bridges = []
+    for (gi, gj), data in sorted(pair_data.items(), key=lambda x: x[1]['weight'], reverse=True):
+        # Top symbols by frequency across the paired components
+        top_syms = sorted(data['symbols'], key=data['symbols'].__getitem__, reverse=True)[:MAX_BRIDGE_SYMBOLS]
+        if top_syms:
+            bridges.append({
+                'source': gi,
+                'target': gj,
+                'weight': round(data['weight'], 3),
+                'symbols': top_syms,
+            })
+    return bridges
+
+
+# ---------------------------------------------------------------------------
 # Coverage validation
 # ---------------------------------------------------------------------------
 
@@ -582,6 +646,8 @@ def plan(root: Path, max_files: int, max_words: int,
     # Sort by file count
     groups.sort(key=lambda g: g.files, reverse=True)
 
+    bridges = compute_bridges(groups, components, coupling)
+
     coverage = validate_coverage(groups, all_files)
 
     top_pairs = sorted(coupling.items(), key=lambda x: x[1], reverse=True)[:10]
@@ -632,6 +698,7 @@ def plan(root: Path, max_files: int, max_words: int,
             for g in groups
         ],
         'num_graphs': len(groups),
+        'bridges':    bridges,
         'coverage':   coverage,
     }
 
@@ -685,6 +752,13 @@ def print_plan(result: dict, verbose: bool = False, validate_only: bool = False)
         print(f"  Graph {i:2d}:  {display}")
         print(f"           {g['files']} files  ~{g['words_est']:,} words"
               f"  lang={g['top_lang']}  directed={g['directed']}{flag}{reason}")
+
+    if result.get('bridges'):
+        print(f"\nCross-graph bridges:")
+        for b in result['bridges']:
+            syms = ', '.join(b['symbols'])
+            print(f"  Graph {b['source']+1} <-> Graph {b['target']+1}"
+                  f"  (weight={b['weight']})  via: {syms}")
 
     print(f"\n# Graphify commands:")
     for i, g in enumerate(result['graphs'], 1):

@@ -21,7 +21,8 @@ Knowledge graph tools work best on focused, coherent subsets of a codebase. Feed
 5. **Groups non-code by tree** — yaml/json/toml/doc files have no imports; they're grouped by directory proximity instead
 6. **Splits oversized groups** — detects star topology (keep whole) vs. domain clusters (split)
 7. **Absorbs tiny groups** — components too small to stand alone merge into their nearest neighbour
-8. **Validates coverage** — guarantees 100% of source files appear in at least one graph
+8. **Computes cross-graph bridges** — identifies shared domain symbols between components in different graphs, enabling agents to traverse across graph boundaries
+9. **Validates coverage** — guarantees 100% of source files appear in at least one graph
 
 ## Usage
 
@@ -37,24 +38,47 @@ python repomap.py <repo_root> --max-files 150    # lower graph size cap
 
 ```
 Repo       : /home/user/myproject
-Files      : 549  (~358,900 words)
-Components : 78 (meaningful dirs with source files)
-Excluded   : __pycache__, generated_code, third_party
-Coverage   : 549/549 files (100.0%) [OK]
+Files      : 147  (~78,477 words)
+Components : 31 (meaningful dirs with source files)
+Excluded   : __pycache__, node_modules, .venv, dist
+Coverage   : 147/147 files (100.0%) [OK]
 
-=> 3 graph(s) recommended
+=> 13 graph(s) recommended
 
-  Graph  1:  AmaAgent, AppAgent, CollectDAgent  +66 more
-             532 files  ~345,542 words  lang=cpp  directed=True  [oversized]
-             reason: star topology - splitting would duplicate the hub into every sub-graph
-  Graph  2:  tools, LogAnalyzer, Analyzer
-             9 files  ~7,169 words  lang=python  directed=True
-  Graph  3:  CommunicationManager, TriggerManager
-             8 files  ~6,189 words  lang=doc  directed=False
+  Graph  1:  server, knowledge_extract, kb_core  +5 more
+             66 files  ~16,982 words  lang=python  directed=True
+  Graph  2:  ui, views
+             17 files  ~2,964 words  lang=typescript  directed=False
+  Graph  3:  components, hooks
+             10 files  ~2,849 words  lang=typescript  directed=False
+
+Cross-graph bridges:
+  Graph 1 <-> Graph 3  (weight=0.294)  via: kb_core
+  Graph 1 <-> Graph 2  (weight=0.281)  via: kb_core, resume_kb_server.settings, knowledge_extract.probe
 
 # Graphify commands:
   # Graph 1
-  /graphify /home/user/myproject /home/user/myproject/agents/AmaAgent ... --directed
+  /graphify /home/user/myproject/packages/knowledge-extract --directed
+```
+
+### Cross-graph bridges
+
+When the partitioning splits coupled components into separate graphs, `repomap` reports the shared domain-specific import symbols between them. These are traversal anchors — an AI agent working in Graph 1 that encounters `kb_core` can look up the bridges and know that Graph 3 also references it, loading that graph for the other side of the interface.
+
+Bridge symbols are filtered of stdlib noise (`pathlib`, `datetime`, `os`, `react`, `pydantic`, etc.) so only architecturally meaningful symbols survive.
+
+**JSON output** (`--json`):
+```json
+{
+  "bridges": [
+    {
+      "source": 0,
+      "target": 2,
+      "weight": 0.294,
+      "symbols": ["kb_core", "knowledge_extract.probe"]
+    }
+  ]
+}
 ```
 
 ## Supported languages
@@ -104,6 +128,16 @@ Automatically skipped:
 | `--json` | off | Output as JSON (useful for tooling integration) |
 | `--validate` | off | Show coverage report only, no graph commands |
 | `--verbose` | off | Show duplicated anchor files |
+
+## Claude Code skill
+
+A ready-made skill for Claude Code is included at `skills/repomap/SKILL.md`. To install it locally:
+
+```bash
+cp -r skills/repomap ~/.claude/skills/repomap
+```
+
+This enables Claude to invoke repomap automatically when you ask questions like "how should I graphify this repo" or "plan the graph for this codebase".
 
 ## Requirements
 
