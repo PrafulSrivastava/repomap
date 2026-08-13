@@ -786,12 +786,33 @@ if __name__ == '__main__':
     parser.add_argument('--coupling', type=float, default=DEFAULT_COUPLING,
                         help='Jaccard threshold to merge components into one graph')
     parser.add_argument('--json', dest='as_json', action='store_true')
+    parser.add_argument('--output', '-o', type=str, default=None,
+                        help='Write repomap manifest to file (e.g. repomap.json)')
     parser.add_argument('--validate', action='store_true',
                         help='Show coverage report only')
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
 
     result = plan(Path(args.root), args.max_files, args.max_words, args.coupling)
+
+    if args.output:
+        manifest = {
+            'repo': result['repo'],
+            'graphs': [
+                {
+                    'id': i,
+                    'dirs': g['dirs'],
+                    'files': g['files'],
+                    'words': g['words_est'],
+                    'lang': g['top_lang'],
+                    'directed': g['directed'],
+                }
+                for i, g in enumerate(result.get('graphs', []))
+            ],
+            'bridges': result.get('bridges', []),
+        }
+        Path(args.output).write_text(json.dumps(manifest, indent=2, default=str))
+        print(f"Manifest written to {args.output}")
 
     if args.as_json:
         cov = result.get('coverage', {})
