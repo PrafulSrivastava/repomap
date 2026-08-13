@@ -8,4 +8,5 @@ build/
 *.egg-info/
 .env
 .claude/
-.serena
+.serena/
+my-output-dir/
