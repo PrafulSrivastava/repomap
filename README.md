@@ -26,6 +26,8 @@ Knowledge graph tools work best on focused, coherent subsets of a codebase. Feed
 
 ## Usage
 
+### Planning only (no dependencies)
+
 ```bash
 python repomap.py <repo_root>
 python repomap.py <repo_root> --validate         # coverage check only
@@ -33,6 +35,16 @@ python repomap.py <repo_root> --json             # machine-readable output
 python repomap.py <repo_root> --coupling 0.10    # raise merge threshold (fewer, larger graphs)
 python repomap.py <repo_root> --max-files 150    # lower graph size cap
 ```
+
+### End-to-end pipeline (plan + AST graphs + manifest)
+
+```bash
+python run_all.py <repo_root>
+python run_all.py <repo_root> --target ./output-dir
+python run_all.py <repo_root> --target ~/graphs/project --coupling 0.20
+```
+
+`run_all.py` runs the full pipeline: partition the repo, build AST graphs via [graphify](https://github.com/graphifyy/graphify), and write a `repomap.json` manifest. Requires `graphify` to be installed (`pip install graphifyy`).
 
 ## Example output
 
@@ -141,10 +153,12 @@ This enables Claude to invoke repomap automatically when you ask questions like 
 
 ## Requirements
 
-Python 3.9+, no dependencies beyond the standard library.
+- `repomap.py`: Python 3.9+, no dependencies beyond the standard library.
+- `run_all.py`: Python 3.9+ and [graphify](https://github.com/graphifyy/graphify) (`pip install graphifyy`).
 
 ```bash
 python repomap.py --help
+python run_all.py --help
 ```
 
 ## License
