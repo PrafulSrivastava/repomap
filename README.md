@@ -163,7 +163,7 @@ This repo is a fully installable Claude Code plugin.
 ### Install from GitHub
 
 ```bash
-claude plugin install github.com/srivpra/repomap
+claude plugin install github.com/PrafulSrivastava/repomap
 ```
 
 ### Install locally (for development/testing)
