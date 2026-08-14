@@ -103,6 +103,24 @@ Symbols an agent can use to jump between graphs. When traversing Graph A and enc
 
 **Rule of thumb:** if the default produces one mega-graph with 0 bridges, raise the threshold until architectural layers split apart.
 
+## Iterative Threshold Tuning
+
+Don't guess the right threshold — converge on it. Run `repomap.py` with `--json`, evaluate the output, and adjust:
+
+1. **Start:** run with default `--coupling 0.05`
+2. **Evaluate the result:**
+   - One mega-graph, 0 bridges → threshold too low, layers are glued together. Raise by 0.10.
+   - Many graphs with <4 files each → threshold too high, components are over-split. Lower by 0.05.
+   - Bridges dominated by infrastructure symbols (`logging`, `config`, `utils`) → threshold slightly too low, domain boundaries haven't separated. Raise by 0.05.
+   - Bridges contain domain-specific symbols and graphs align with architectural responsibilities → stop, this is the sweet spot.
+3. **Re-run** with adjusted `--coupling` and evaluate again.
+4. **Stop when:**
+   - Each graph represents a coherent architectural responsibility (not a grab-bag of unrelated dirs)
+   - Bridges surface domain-specific symbols that would help trace cross-cutting flows
+   - No graph is so large it's unreadable, and no graph is so small it's trivial
+
+The goal is graphs that match how a developer would explain the system's parts — not a specific count. A 3-component service might need 2 graphs; a 200-component monorepo might need 15. Let the structure of the codebase dictate the partition.
+
 ## Exclusions (automatic)
 
 - `node_modules`, `vendor`, `.venv`, `dist`, `target`, `__pycache__`
