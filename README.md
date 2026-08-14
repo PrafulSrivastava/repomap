@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.jpg" alt="repomap logo" width="400">
+</p>
+
 # repomap
 
 **Automatically partition any codebase into the minimum effective set of knowledge graphs.**
@@ -159,10 +163,14 @@ claude --plugin-dir /path/to/repomap
 
 Once installed, Claude will automatically invoke the `repomap` skill when you ask things like "how should I graphify this repo" or "plan the graph for this codebase".
 
-## Requirements
+## Prerequisites
 
-- `repomap.py`: Python 3.9+, no dependencies beyond the standard library.
-- `run_all.py`: Python 3.9+ and [graphify](https://github.com/graphifyy/graphify) (`pip install graphifyy`).
+| Requirement | Needed for | Install |
+|---|---|---|
+| Python 3.9+ | Both scripts | [python.org](https://www.python.org/downloads/) or your system package manager |
+| `graphifyy` | `run_all.py` only | `pip install graphifyy` |
+
+`repomap.py` has zero dependencies beyond the standard library. Only install `graphifyy` if you want the full end-to-end pipeline.
 
 ```bash
 python repomap.py --help
