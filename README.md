@@ -14,7 +14,18 @@ Tested on C++ embedded systems, Python services, TypeScript frontends, and mixed
 
 ## The problem
 
-Knowledge graph tools work best on focused, coherent subsets of a codebase. Feed them a 500-file repo at once and you get noise. Split it manually and you miss cross-cutting dependencies. `repomap` solves this automatically.
+[graphify](https://github.com/graphifyy/graphify) turns code into knowledge graphs — but it works best on focused, coherent subsets of a codebase. Feed it a 500-file monorepo in one shot and you get a noisy, unnavigable graph. Split it manually and you miss cross-cutting dependencies.
+
+**The real issue is scale.** Most production codebases are too large for graphify to process in a single pass. You need a multi-step approach: partition the repo into manageable chunks, graph each one individually, and then link them together. But deciding *where* to draw those boundaries — which directories belong together, which languages need directed graphs, which components are tightly coupled — requires analysis you shouldn't do by hand.
+
+`repomap` is that analysis step. It sits *before* graphify and answers:
+
+- **How many graphs do I need?** Based on file count, word count, language boundaries, and coupling strength.
+- **What goes in each graph?** Components are grouped by shared imports (Jaccard similarity), not by folder layout. Tightly coupled code stays together; loosely coupled code splits apart.
+- **Which graphs should be directed?** Languages with directional imports (Python, Go, Rust) get `--directed`; others don't.
+- **How do I navigate between graphs?** Cross-graph bridges identify the shared domain symbols that link separate graphs — an agent in Graph A encountering `kb_core` knows to load Graph B for the other side of that interface.
+
+The result is **100% file coverage** with zero redundancy, plus a central manifest (`repomap.json`) that indexes every graph and the bridges between them — giving AI agents a single lookup table to traverse your entire codebase across multiple graphs.
 
 ## How it works
 
