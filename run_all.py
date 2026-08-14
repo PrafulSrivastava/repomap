@@ -97,6 +97,15 @@ def build_graph_for_group(group: dict, group_id: int, target_dir: Path,
         encoding="utf-8"
     )
 
+    # Extract top defined symbols by out-degree (most-referenced definitions)
+    keywords = []
+    try:
+        out_deg = sorted(G.out_degree() if directed else G.degree(),
+                         key=lambda x: x[1], reverse=True)
+        keywords = [node for node, _ in out_deg[:10] if not node.startswith('__')]
+    except Exception:
+        pass
+
     return {
         'id': group_id,
         'graph_path': graph_path,
@@ -106,6 +115,7 @@ def build_graph_for_group(group: dict, group_id: int, target_dir: Path,
         'dirs': group['dirs'],
         'lang': group.get('top_lang', group.get('lang', 'unknown')),
         'directed': directed,
+        'keywords': keywords,
     }
 
 
@@ -155,6 +165,10 @@ def main():
 
     # Step 3: Write manifest
     print(f"[3/3] Writing manifest ...")
+    # Map graph index to feature_tags from the plan
+    plan_graphs = result.get('graphs', [])
+    plan_tags = {i: plan_graphs[i].get('feature_tags', []) for i in range(len(plan_graphs))}
+
     manifest = {
         'repo': str(root),
         'target': str(target_dir),
@@ -168,6 +182,8 @@ def main():
                 'dirs': m['dirs'],
                 'lang': m['lang'],
                 'directed': m['directed'],
+                'feature_tags': plan_tags.get(m['id'], []),
+                'keywords': m.get('keywords', []),
             }
             for m in built
         ],

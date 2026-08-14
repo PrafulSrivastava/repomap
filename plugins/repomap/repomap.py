@@ -519,7 +519,35 @@ BRIDGE_NOISE = frozenset({
     'uuid', 'contextlib', 'tempfile', 'shutil', 'subprocess', 'glob',
     'pydantic', 'pytest', 'asyncio', 'unittest',
     'react', 'react-dom', 'next', 'vue',
+    # C++ stdlib / ecosystem
+    'gtest/gtest.h', 'gmock/gmock.h', 'gtest/gtest_prod.h',
+    'ara/log/logging.h', 'ara/core/string_view.h',
+    'vector', 'string', 'memory', 'iostream', 'sstream',
+    'functional', 'algorithm', 'map', 'unordered_map', 'set',
+    'cassert', 'cstdint', 'cstring', 'cstdlib', 'cstdio',
 })
+
+
+# ponytail: enum constants as supplementary bridge signal (not used for coupling)
+ENUM_CONST_RE = re.compile(r'\bk[A-Z][a-zA-Z0-9_]+\b')
+
+
+def extract_enum_constants(file_path: Path) -> set[str]:
+    try:
+        text = file_path.read_text(errors='ignore')
+    except Exception:
+        return set()
+    return set(ENUM_CONST_RE.findall(text))
+
+
+def _idf_weight(sym: str, all_refs: list[frozenset]) -> float:
+    """Inverse document frequency: rare symbols score higher."""
+    from math import log
+    df = sum(1 for refs in all_refs if sym in refs)
+    n = len(all_refs)
+    if df == 0 or n == 0:
+        return 0.0
+    return log(n / df)
 
 
 def compute_bridges(groups: list[GraphGroup],
@@ -555,10 +583,28 @@ def compute_bridges(groups: list[GraphGroup],
                 continue
             pair_data[key]['symbols'][sym] += 1
 
+    # Supplement with enum constants shared across graph boundaries
+    graph_enums: dict[int, set[str]] = defaultdict(set)
+    for gi, g in enumerate(groups):
+        for c in g.components:
+            for f in c.files:
+                graph_enums[gi].update(extract_enum_constants(f))
+    for (gi, gj), data in pair_data.items():
+        shared_enums = graph_enums[gi] & graph_enums[gj]
+        for sym in shared_enums:
+            data['symbols'].setdefault(sym, 0)
+            data['symbols'][sym] += 1
+
+    # ponytail: IDF sort — rare domain symbols surface over ubiquitous ones
+    all_refs = [c.refs for c in components]
+
     bridges = []
     for (gi, gj), data in sorted(pair_data.items(), key=lambda x: x[1]['weight'], reverse=True):
-        # Top symbols by frequency across the paired components
-        top_syms = sorted(data['symbols'], key=data['symbols'].__getitem__, reverse=True)[:MAX_BRIDGE_SYMBOLS]
+        top_syms = sorted(
+            data['symbols'],
+            key=lambda s: _idf_weight(s, all_refs),
+            reverse=True,
+        )[:MAX_BRIDGE_SYMBOLS]
         if top_syms:
             bridges.append({
                 'source': gi,
@@ -567,6 +613,43 @@ def compute_bridges(groups: list[GraphGroup],
                 'symbols': top_syms,
             })
     return bridges
+
+
+# ---------------------------------------------------------------------------
+# Auto-discovered feature tags
+# ---------------------------------------------------------------------------
+
+def discover_feature_tags(groups: list[GraphGroup], root: Path) -> list[list[str]]:
+    """
+    Find domain-specific tags per group by looking at directory stems that
+    appear in few groups (rare = domain-specific, not infrastructure).
+    """
+    # Collect leaf dir stems per group
+    group_stems: list[set[str]] = []
+    for g in groups:
+        stems = set()
+        for d in g.dirs:
+            # Use the last non-layout part of the path as the stem
+            parts = d.relative_to(root).parts if d != root else ()
+            for part in reversed(parts):
+                if part.lower() not in LAYOUT_DIRS:
+                    stems.add(part.lower())
+                    break
+        group_stems.append(stems)
+
+    # Count how many groups each stem appears in
+    stem_counts: dict[str, int] = defaultdict(int)
+    for stems in group_stems:
+        for s in stems:
+            stem_counts[s] += 1
+
+    # Tags = stems that appear in ≤3 groups (rare = domain-specific)
+    max_groups = min(3, max(len(groups) // 2, 1))
+    tags_per_group: list[list[str]] = []
+    for stems in group_stems:
+        tags = sorted(s for s in stems if stem_counts[s] <= max_groups)
+        tags_per_group.append(tags)
+    return tags_per_group
 
 
 # ---------------------------------------------------------------------------
@@ -647,6 +730,7 @@ def plan(root: Path, max_files: int, max_words: int,
     groups.sort(key=lambda g: g.files, reverse=True)
 
     bridges = compute_bridges(groups, components, coupling)
+    feature_tags = discover_feature_tags(groups, root)
 
     coverage = validate_coverage(groups, all_files)
 
@@ -684,6 +768,7 @@ def plan(root: Path, max_files: int, max_words: int,
                 'files':     g.files,
                 'words_est': g.words,
                 'top_lang':  g.top_lang,
+                'feature_tags': feature_tags[i],
                 'oversized': g.is_oversized(max_files, max_words),
                 'oversized_reason': (
                     'star topology - all components share a common hub; '
@@ -695,7 +780,7 @@ def plan(root: Path, max_files: int, max_words: int,
                 ),
                 'directed':  g.top_lang in DIRECTED_LANGS,
             }
-            for g in groups
+            for i, g in enumerate(groups)
         ],
         'num_graphs': len(groups),
         'bridges':    bridges,

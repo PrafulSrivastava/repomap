@@ -110,6 +110,27 @@ Symbols an agent can use to jump between graphs. When traversing Graph A and enc
 - `generated*/`, `coverage/`, `htmlcov/`
 - Date-prefixed directories (e.g., `2026-07-17-*`) — output/data, not source
 
+## Answering Questions Against a Repomap
+
+When a question asks "how is X implemented" or "how does X work":
+
+1. **Find the domain entry point** for X (e.g. for DLT: `DLTAgent`, not the generic chunker). Look for class/module names that match the query term directly.
+2. **Select all relevant graphs** — use `repomap.json` `feature_tags` and `dirs` to identify every graph the flow touches. Match query keywords against tags first, then directory names.
+3. **Trace the call chain forward** from the entry point through graph edges. Follow function calls, not just structural relationships.
+4. **Note source-specific branches** — enum forks (e.g. `kDlt` vs `kNdas`), feature flags, or type dispatches that specialize the generic pipeline for X.
+5. **Follow bridges across graph boundaries** — if the flow exits one graph, use bridge symbols in `repomap.json` to find the continuation in the linked graph. Do not stop at one graph.
+6. **The generic pipeline is context; the source-specific path is the answer.** Describe what's unique to X, referencing the shared infrastructure only as framing.
+
+## Multi-Graph Query Routing
+
+When answering a cross-cutting question that spans multiple architectural layers:
+
+1. Read `repomap.json` — check `feature_tags` and `keywords` fields for query-term matches
+2. Rank graphs by relevance: exact tag match > keyword match > directory-name substring match
+3. Load communities from the top 2–4 matching graphs (not all graphs)
+4. Synthesize the answer in **entry-point-first order**: start with the domain-specific initiator, trace through middleware/infrastructure, end at the output/sink
+5. If no feature tags match, fall back to scanning `dirs` for path segments containing query terms
+
 ## Prerequisites
 
 - Python 3.9+
