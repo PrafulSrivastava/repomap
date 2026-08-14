@@ -1,0 +1,28 @@
+{
+  "name": "praful-marketplace",
+  "owner": {
+    "name": "Praful Srivastava"
+  },
+  "version": "1.0.0",
+  "description": "Praful's Claude Code plugin marketplace.",
+  "author": {
+    "name": "Praful Srivastava",
+    "email": "praful@example.com"
+  },
+  "plugins": [
+    {
+      "name": "repomap",
+      "source": "./plugins/repomap",
+      "description": "Partition any codebase into optimal knowledge-graph groups with cross-graph bridge metadata. Plans the minimum effective set of graphs before running graphify — no AI needed, pure static analysis.",
+      "version": "1.0.0",
+      "keywords": [
+        "repomap",
+        "graphify",
+        "knowledge-graph",
+        "codebase-analysis",
+        "partitioning",
+        "architecture"
+      ]
+    }
+  ]
+}

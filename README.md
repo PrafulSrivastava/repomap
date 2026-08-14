@@ -158,18 +158,41 @@ Automatically skipped:
 
 ## Claude Code Plugin
 
-This repo is a fully installable Claude Code plugin.
+This repo is a self-contained Claude Code marketplace following the [marketplace template](https://github.com/Nagell/claude-marketplace-template) spec.
 
-### Install from GitHub
+### Install from this marketplace
 
 ```bash
-claude plugin install github.com/PrafulSrivastava/repomap
+/plugin install repomap@praful-marketplace
 ```
 
 ### Install locally (for development/testing)
 
 ```bash
-claude --plugin-dir /path/to/repomap
+claude --plugin-dir /path/to/repomap/plugins/repomap
+```
+
+### Marketplace structure
+
+```
+repomap/                          # marketplace root
+├── .claude-plugin/
+│   └── marketplace.json          # marketplace index
+├── plugins/
+│   └── repomap/                  # installable plugin
+│       ├── .claude-plugin/
+│       │   └── plugin.json       # name, version, author, keywords
+│       ├── skills/
+│       │   └── repomap/
+│       │       └── SKILL.md      # skill definition with ${CLAUDE_PLUGIN_ROOT} paths
+│       ├── repomap.py            # plan-only script
+│       ├── run_all.py            # end-to-end pipeline
+│       └── requirements.txt
+├── scripts/
+│   └── generate-release-config.js
+├── .github/workflows/release.yml # automated versioning via Release Please
+├── release-please-config.json
+└── .release-please-manifest.json
 ```
 
 Once installed, Claude will automatically invoke the `repomap` skill when you ask things like "how should I graphify this repo" or "plan the graph for this codebase".
