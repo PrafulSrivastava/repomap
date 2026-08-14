@@ -61,32 +61,60 @@ python run_all.py <repo_root> --target ~/graphs/project --coupling 0.20
 
 `run_all.py` runs the full pipeline: partition the repo, build AST graphs via [graphify](https://github.com/graphifyy/graphify), and write a `repomap.json` manifest. Requires `graphify` to be installed (`pip install graphifyy`).
 
-## Example output
+## Example: iterating on a large repo
+
+Start with the default threshold to get the broad picture:
+
+```bash
+python repomap.py /path/to/myproject
+```
 
 ```
-Repo       : /home/user/myproject
-Files      : 147  (~78,477 words)
-Components : 31 (meaningful dirs with source files)
-Excluded   : __pycache__, node_modules, .venv, dist
-Coverage   : 147/147 files (100.0%) [OK]
+Repo       : /path/to/myproject
+Files      : 548  (~356,431 words)
+Components : 77 (meaningful dirs with source files)
+=> 3 graph(s) recommended
 
-=> 13 graph(s) recommended
-
-  Graph  1:  server, knowledge_extract, kb_core  +5 more
-             66 files  ~16,982 words  lang=python  directed=True
-  Graph  2:  ui, views
-             17 files  ~2,964 words  lang=typescript  directed=False
-  Graph  3:  components, hooks
-             10 files  ~2,849 words  lang=typescript  directed=False
-
-Cross-graph bridges:
-  Graph 1 <-> Graph 3  (weight=0.294)  via: kb_core
-  Graph 1 <-> Graph 2  (weight=0.281)  via: kb_core, resume_kb_server.settings, knowledge_extract.probe
-
-# Graphify commands:
-  # Graph 1
-  /graphify /home/user/myproject/packages/knowledge-extract --directed
+  Graph 1: module1, module2, module3 +12 more  532 files  lang=cpp  directed=True  [oversized, star topology]
+  Graph 2: module14, module15                    8 files  lang=doc  directed=False
+  Graph 3: module16                              8 files  lang=python  directed=True
 ```
+
+Graph 1 is flagged **oversized** — a core module acts as a hub that every other component imports, so splitting it would just duplicate the hub. Raise the threshold to expose layer boundaries:
+
+```bash
+python repomap.py /path/to/myproject --coupling 0.20
+```
+
+```
+=> 7 graph(s) — loosely coupled modules split off
+
+  Graph 1: module1, module2, module3 +8 more  468 files  [still star topology]
+  Graph 3: module4, module5                    19 files
+  Graph 4: module6, module7                    15 files
+  Graph 7: module8                              7 files
+```
+
+Still too coarse? Go higher:
+
+```bash
+python repomap.py /path/to/myproject --coupling 0.30
+```
+
+```
+=> 23 graph(s) — full architectural decomposition
+
+  Graph 1:  module1, module2, module3     83 files
+  Graph 2:  module4, module5, module6     74 files
+  Graph 3:  module7, module8, module9     64 files
+  Graph 4:  module10, module11            51 files
+  Graph 5:  module12, module13            40 files
+  Graph 6:  module14                      29 files
+  ...
+  191 cross-graph bridges
+```
+
+**Sweet spot:** `0.20` for navigation (7 focused graphs), `0.30` for deep per-component analysis (23 graphs with rich bridges).
 
 ### Cross-graph bridges
 
@@ -160,9 +188,13 @@ Automatically skipped:
 
 This repo is a self-contained Claude Code marketplace following the [marketplace template](https://github.com/Nagell/claude-marketplace-template) spec.
 
-### Install from this marketplace
+### Install
 
 ```bash
+# 1. Add the marketplace (one-time)
+/plugin marketplace add PrafulSrivastava/repomap
+
+# 2. Install the plugin
 /plugin install repomap@praful-marketplace
 ```
 
@@ -170,29 +202,6 @@ This repo is a self-contained Claude Code marketplace following the [marketplace
 
 ```bash
 claude --plugin-dir /path/to/repomap/plugins/repomap
-```
-
-### Marketplace structure
-
-```
-repomap/                          # marketplace root
-├── .claude-plugin/
-│   └── marketplace.json          # marketplace index
-├── plugins/
-│   └── repomap/                  # installable plugin
-│       ├── .claude-plugin/
-│       │   └── plugin.json       # name, version, author, keywords
-│       ├── skills/
-│       │   └── repomap/
-│       │       └── SKILL.md      # skill definition with ${CLAUDE_PLUGIN_ROOT} paths
-│       ├── repomap.py            # plan-only script
-│       ├── run_all.py            # end-to-end pipeline
-│       └── requirements.txt
-├── scripts/
-│   └── generate-release-config.js
-├── .github/workflows/release.yml # automated versioning via Release Please
-├── release-please-config.json
-└── .release-please-manifest.json
 ```
 
 Once installed, Claude will automatically invoke the `repomap` skill when you ask things like "how should I graphify this repo" or "plan the graph for this codebase".
@@ -205,6 +214,8 @@ Once installed, Claude will automatically invoke the `repomap` skill when you as
 | `graphifyy` | `run_all.py` only | `pip install graphifyy` |
 
 `repomap.py` has zero dependencies beyond the standard library. Only install `graphifyy` if you want the full end-to-end pipeline.
+
+> **Windows note:** Use `python` (not `python3`). If you get "Python was not found", disable the Microsoft Store app alias in Settings > Apps > Advanced app settings > App execution aliases.
 
 ```bash
 python repomap.py --help

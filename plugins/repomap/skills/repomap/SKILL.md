@@ -28,16 +28,16 @@ Use this when the user just wants to see the partition plan, coupling analysis, 
 
 ```bash
 # Default analysis
-python3 ${CLAUDE_PLUGIN_ROOT}/repomap.py <repo_path>
+python ${CLAUDE_PLUGIN_ROOT}/repomap.py <repo_path>
 
 # JSON output (for programmatic consumption)
-python3 ${CLAUDE_PLUGIN_ROOT}/repomap.py <repo_path> --json
+python ${CLAUDE_PLUGIN_ROOT}/repomap.py <repo_path> --json
 
 # Coverage validation only
-python3 ${CLAUDE_PLUGIN_ROOT}/repomap.py <repo_path> --validate
+python ${CLAUDE_PLUGIN_ROOT}/repomap.py <repo_path> --validate
 
 # Custom thresholds
-python3 ${CLAUDE_PLUGIN_ROOT}/repomap.py <repo_path> --coupling 0.20 --max-files 100 --max-words 200000
+python ${CLAUDE_PLUGIN_ROOT}/repomap.py <repo_path> --coupling 0.20 --max-files 100 --max-words 200000
 ```
 
 ### Flag Heuristics
@@ -56,13 +56,13 @@ Use this when the user wants actual graph files built — requires `graphify` to
 
 ```bash
 # Default (output to <repo>/repomap-out/)
-python3 ${CLAUDE_PLUGIN_ROOT}/run_all.py <repo_path>
+python ${CLAUDE_PLUGIN_ROOT}/run_all.py <repo_path>
 
 # Custom output directory
-python3 ${CLAUDE_PLUGIN_ROOT}/run_all.py <repo_path> --target ./output-dir
+python ${CLAUDE_PLUGIN_ROOT}/run_all.py <repo_path> --target ./output-dir
 
 # With custom coupling threshold
-python3 ${CLAUDE_PLUGIN_ROOT}/run_all.py <repo_path> --target ~/graphs/project --coupling 0.20
+python ${CLAUDE_PLUGIN_ROOT}/run_all.py <repo_path> --target ~/graphs/project --coupling 0.20
 ```
 
 ### Output Structure
