@@ -141,15 +141,23 @@ Automatically skipped:
 | `--validate` | off | Show coverage report only, no graph commands |
 | `--verbose` | off | Show duplicated anchor files |
 
-## Claude Code skill
+## Claude Code Plugin
 
-A ready-made skill for Claude Code is included at `skills/repomap/SKILL.md`. To install it locally:
+This repo is a fully installable Claude Code plugin.
+
+### Install from GitHub
 
 ```bash
-cp -r skills/repomap ~/.claude/skills/repomap
+claude plugin install github.com/srivpra/repomap
 ```
 
-This enables Claude to invoke repomap automatically when you ask questions like "how should I graphify this repo" or "plan the graph for this codebase".
+### Install locally (for development/testing)
+
+```bash
+claude --plugin-dir /path/to/repomap
+```
+
+Once installed, Claude will automatically invoke the `repomap` skill when you ask things like "how should I graphify this repo" or "plan the graph for this codebase".
 
 ## Requirements
 

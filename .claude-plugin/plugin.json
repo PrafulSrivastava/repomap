@@ -1,0 +1,5 @@
+{
+  "name": "repomap",
+  "version": "1.0.0",
+  "description": "Partition any codebase into optimal knowledge-graph groups with cross-graph bridge metadata. Plans the minimum effective set of graphs before running graphify — no AI needed, pure static analysis."
+}
